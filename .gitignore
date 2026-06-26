@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+# data and outputs stay out of git
+data/
+results/
+*.pickle
+*.mat
+*.xlsx
+*.csv
