@@ -10,13 +10,13 @@ sentences (55 / 55).
 
 ## Data
 
-The data is not in the repo. You need two folders somewhere on disk:
+The data is not in the repo. You need, somewhere on disk:
 
 - the `TRT_Total` folder with the 12 `<Name>_trt_total.pickle` files
-- the folder holding `Total_Sentiment_Raw_1.xlsx`, `_2`, `_3` (the labels)
+- `teco_sentiment_labels_task1.csv` (the sentiment labels)
 
-The Persian sentences live inside the pickles, so the Excel files are only used
-for the sentiment labels.
+Labels are matched to the EEG by sentence text, so the order/id in the CSV
+doesn't matter.
 
 ## Run
 
@@ -28,9 +28,9 @@ From a terminal:
 ```
 pip install -r requirements.txt
 python src/per_participant_eeg.py \
-    --trt-dir   /path/to/TRT_Total \
-    --labels-dir /path/to/sentences/Task_1 \
-    --out-dir   results
+    --trt-dir    /path/to/TRT_Total \
+    --labels-csv /path/to/teco_sentiment_labels_task1.csv \
+    --out-dir    results
 ```
 
 It prints macro-F1 for each participant and the mean, and writes

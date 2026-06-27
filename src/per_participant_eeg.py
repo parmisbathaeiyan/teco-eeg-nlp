@@ -17,7 +17,7 @@ def _seed_everything(seed):
     tf.random.set_seed(seed)
 
 
-def run(trt_dir, labels_dir, out_dir="results", epochs=100, batch_size=64, seed=45):
+def run(trt_dir, labels_csv, out_dir="results", epochs=100, batch_size=64, seed=45):
     _seed_everything(seed)
 
     import tensorflow as tf
@@ -25,7 +25,7 @@ def run(trt_dir, labels_dir, out_dir="results", epochs=100, batch_size=64, seed=
     from tensorflow.keras.callbacks import EarlyStopping
     from sklearn.metrics import classification_report
 
-    X, y, codes = build_binary_dataset(trt_dir, labels_dir)
+    X, y, codes = build_binary_dataset(trt_dir, labels_csv)
     X = X[..., None]                       # conv2d wants a channel axis
     Y = to_categorical(y, num_classes=2)
     n = X.shape[0]
@@ -66,14 +66,14 @@ def main():
     ap = argparse.ArgumentParser(
         description="EEG-only binary sentiment, leave-one-participant-out (TeCo task 1).")
     ap.add_argument("--trt-dir", required=True, help="folder with the *_trt_total.pickle files")
-    ap.add_argument("--labels-dir", required=True, help="folder with Total_Sentiment_Raw_*.xlsx")
+    ap.add_argument("--labels-csv", required=True, help="teco_sentiment_labels_task1.csv")
     ap.add_argument("--out-dir", default="results")
     ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--seed", type=int, default=45)
     args = ap.parse_args()
 
-    run(args.trt_dir, args.labels_dir, args.out_dir,
+    run(args.trt_dir, args.labels_csv, args.out_dir,
         epochs=args.epochs, batch_size=args.batch_size, seed=args.seed)
 
 

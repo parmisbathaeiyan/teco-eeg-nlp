@@ -1,5 +1,5 @@
 import os
-import glob
+import re
 import pickle
 
 import numpy as np
@@ -16,15 +16,17 @@ N_SENTENCES = 165
 N_CHANNELS = 126
 
 
-def load_labels(labels_dir):
-    files = sorted(glob.glob(os.path.join(labels_dir, "Total_Sentiment_Raw_*.xlsx")))
-    if not files:
-        raise FileNotFoundError(f"no Total_Sentiment_Raw_*.xlsx under {labels_dir}")
-    df = pd.concat([pd.read_excel(f) for f in files], ignore_index=True)
-    df = df[["id", "sentence_per", "sentiment_label"]].copy()
-    df["id"] = df["id"].astype(int)
-    df["sentiment_label"] = df["sentiment_label"].astype(int)
-    return df.sort_values("id").reset_index(drop=True)
+def _norm(text):
+    # the label CSV uses a different sentence id than the pickles, so we match on
+    # the sentence text instead; collapse whitespace and drop the zero-width
+    # non-joiner so the two sources line up exactly
+    return re.sub(r"\s+", "", str(text)).replace("‌", "")
+
+
+def load_labels(labels_csv):
+    df = pd.read_csv(labels_csv)
+    df["key"] = df["sentence"].map(_norm)
+    return df[["key", "sentiment_label", "control"]]
 
 
 def _read_subject(trt_dir, name):
@@ -33,31 +35,42 @@ def _read_subject(trt_dir, name):
 
 
 def load_eeg(trt_dir):
-    """Word-level total-reading-time EEG as (subjects, sentences, words, channels)."""
+    """EEG as (subjects, sentences, words, channels) plus the per-sentence text."""
     subjects = [_read_subject(trt_dir, name) for name, _ in PARTICIPANTS]
     max_words = max(max(len(s[t]["word"]) for t in s) for s in subjects)
 
     eeg = np.zeros((len(subjects), N_SENTENCES, max_words, N_CHANNELS), dtype=np.float32)
     for k, sub in enumerate(subjects):
         for t in sub:
-            sid = sub[t]["sentenceId"]               # 1-based, lines up with the label 'id'
+            sid = sub[t]["sentenceId"]                    # 1-based sentence position
             for wi, word in sub[t]["word"].items():
                 vec = np.asarray(word["TRT_total"])
                 # un-fixated words are stored as a length-2 stub; leave those at zero
                 if vec.shape == (N_CHANNELS,):
                     eeg[k, sid - 1, wi] = vec
-    return eeg
+
+    # same stimuli for everyone, so the first subject is enough to get the text
+    first = subjects[0]
+    text = [None] * N_SENTENCES
+    for t in first:
+        text[first[t]["sentenceId"] - 1] = _norm(first[t]["persian_sentence"])
+    return eeg, text
 
 
-def build_binary_dataset(trt_dir, labels_dir):
+def build_binary_dataset(trt_dir, labels_csv):
     """Positive vs negative sentences (neutral dropped -> 110 sentences)."""
-    labels = load_labels(labels_dir)
-    eeg = load_eeg(trt_dir)
+    labels = load_labels(labels_csv)
+    label_of = dict(zip(labels["key"], labels["sentiment_label"]))
 
-    binary = labels[labels.sentiment_label != 0].sort_values("id").copy()
-    binary["label_id"] = binary["sentiment_label"].map({-1: 0, 1: 1})
+    eeg, text = load_eeg(trt_dir)
+    missing = [i for i, k in enumerate(text) if k not in label_of]
+    if missing:
+        raise ValueError(f"{len(missing)} sentences have no label in {labels_csv}")
 
-    X = eeg[:, binary["id"].to_numpy() - 1]
-    y = binary["label_id"].to_numpy()
+    sentiment = np.array([label_of[k] for k in text])     # in sentence order, {-1,0,1}
+    keep = np.where(sentiment != 0)[0]
+
+    X = eeg[:, keep]
+    y = (sentiment[keep] == 1).astype(int)                # negative -> 0, positive -> 1
     codes = [c for _, c in PARTICIPANTS]
     return X, y, codes
