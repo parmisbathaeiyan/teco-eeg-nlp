@@ -1,11 +1,12 @@
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, AveragePooling2D, Dropout, Flatten, Dense
+from tensorflow.keras.layers import Input, Conv2D, AveragePooling2D, Dropout, Flatten, Dense
 from tensorflow.keras.optimizers import Adam
 
 
 def build_cnn(input_shape, n_classes=2, lr=1e-3):
     model = Sequential()
-    model.add(Conv2D(64, (4, 4), padding="same", activation="relu", input_shape=input_shape))
+    model.add(Input(shape=input_shape))
+    model.add(Conv2D(64, (4, 4), padding="same", activation="relu"))
     model.add(Conv2D(128, (3, 3), padding="same", activation="relu"))
     model.add(AveragePooling2D(pool_size=(3, 3)))
     model.add(Dropout(0.33))
