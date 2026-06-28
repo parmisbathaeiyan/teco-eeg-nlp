@@ -30,6 +30,10 @@ def run(trt_dir, labels_csv, out_dir="results", epochs=100, batch_size=64, seed=
     Y = to_categorical(y, num_classes=2)
     n = X.shape[0]
 
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "per_participant_eeg.csv")
+    print(f"results will be saved to {out_path} (written after every participant)")
+
     rows = []
     for i in range(n):
         # leave one participant out
@@ -50,15 +54,13 @@ def run(trt_dir, labels_csv, out_dir="results", epochs=100, batch_size=64, seed=
                      "precision": macro["precision"],
                      "recall": macro["recall"],
                      "f1": macro["f1-score"]})
-        print(f"{codes[i]:>4}  f1={macro['f1-score']:.3f}")
+        # save after every fold so a Colab disconnect can't wipe finished work
+        pd.DataFrame(rows).to_csv(out_path, index=False)
+        print(f"[{i + 1:>2}/{n}] {codes[i]:>4}  f1={macro['f1-score']:.3f}  (saved)", flush=True)
 
     results = pd.DataFrame(rows)
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "per_participant_eeg.csv")
-    results.to_csv(out_path, index=False)
-
     print(f"\nmean macro-f1: {results['f1'].mean():.4f}")
-    print(f"saved -> {out_path}")
+    print(f"done -> {out_path}")
     return results
 
 
